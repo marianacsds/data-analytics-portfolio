@@ -2,33 +2,94 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Sales Dashboard", layout="wide")
+st.set_page_config(page_title="Beauty Products Dashboard", layout="wide", page_icon="💄")
 
-st.title("Sales Dashboard")
-st.markdown("Análise de dados de vendas — estilo Salesforce")
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
 
-df = pd.read_csv("sales_data_sample.csv", encoding="latin1")
+df = pd.read_csv("ratings_Beauty.csv", names=["userId", "productId", "rating", "timestamp"])
+df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s", errors="coerce")
+df["year"] = df["timestamp"].dt.year
+df["month"] = df["timestamp"].dt.month
+df = df.dropna(subset=["rating"])
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total de pedidos", len(df))
-col2.metric("Receita total", f"$ {df['SALES'].sum():,.0f}")
-col3.metric("Ticket médio", f"$ {df['SALES'].mean():,.0f}")
+st.title("💄 Beauty Products Dashboard")
+st.markdown("Interactive analysis of Amazon Beauty Products ratings")
+st.divider()
 
-st.subheader("Receita por país")
-pais = df.groupby("COUNTRY")["SALES"].sum().reset_index().sort_values("SALES", ascending=False)
-fig1 = px.bar(pais, x="COUNTRY", y="SALES", color="SALES", color_continuous_scale="teal")
-st.plotly_chart(fig1, use_container_width=True)
+st.sidebar.header("Filters")
+years = ["All"] + sorted(df["year"].dropna().unique().tolist())
+selected_year = st.sidebar.selectbox("Year", years)
+min_rating, max_rating = st.sidebar.slider("Rating range", 1.0, 5.0, (1.0, 5.0), 0.5)
 
-st.subheader("Receita por linha de produto")
-produto = df.groupby("PRODUCTLINE")["SALES"].sum().reset_index()
-fig2 = px.pie(produto, names="PRODUCTLINE", values="SALES")
-st.plotly_chart(fig2, use_container_width=True)
+filtered = df.copy()
+if selected_year != "All":
+    filtered = filtered[filtered["year"] == selected_year]
+filtered = filtered[(filtered["rating"] >= min_rating) & (filtered["rating"] <= max_rating)]
 
-st.subheader("Evolução de vendas ao longo do tempo")
-df["ORDERDATE"] = pd.to_datetime(df["ORDERDATE"])
-tempo = df.groupby("ORDERDATE")["SALES"].sum().reset_index()
-fig3 = px.line(tempo, x="ORDERDATE", y="SALES")
+st.subheader("Overview")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Reviews", f"{len(filtered):,}")
+col2.metric("Unique Products", f"{filtered['productId'].nunique():,}")
+col3.metric("Unique Users", f"{filtered['userId'].nunique():,}")
+col4.metric("Average Rating", f"{filtered['rating'].mean():.2f} ⭐")
+
+st.divider()
+
+col_a, col_b = st.columns(2)
+
+with col_a:
+    st.subheader("Rating Distribution")
+    rating_dist = filtered["rating"].value_counts().reset_index()
+    rating_dist.columns = ["Rating", "Count"]
+    rating_dist = rating_dist.sort_values("Rating")
+    fig1 = px.bar(rating_dist, x="Rating", y="Count", color="Count", color_continuous_scale="teal")
+    fig1.update_layout(coloraxis_showscale=False)
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col_b:
+    st.subheader("Reviews Over Time")
+    tempo = filtered.groupby("year").size().reset_index(name="Reviews")
+    fig2 = px.line(tempo, x="year", y="Reviews", color_discrete_sequence=["#00b4d8"], markers=True)
+    fig2.update_layout(xaxis_title="Year", yaxis_title="Number of Reviews")
+    st.plotly_chart(fig2, use_container_width=True)
+
+st.subheader("Top 10 Most Reviewed Products")
+top_products = filtered.groupby("productId").agg(
+    reviews=("rating", "count"),
+    avg_rating=("rating", "mean")
+).reset_index().sort_values("reviews", ascending=False).head(10)
+top_products["avg_rating"] = top_products["avg_rating"].round(2)
+fig3 = px.bar(top_products, x="reviews", y="productId", orientation="h",
+              color="avg_rating", color_continuous_scale="teal",
+              labels={"reviews": "Number of Reviews", "productId": "Product ID", "avg_rating": "Avg Rating"})
 st.plotly_chart(fig3, use_container_width=True)
 
-st.subheader("Dados brutos")
-st.dataframe(df)
+col_c, col_d = st.columns(2)
+
+with col_c:
+    st.subheader("Reviews by Month")
+    monthly = filtered.groupby("month").size().reset_index(name="Reviews")
+    months = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",
+              7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"}
+    monthly["month"] = monthly["month"].map(months)
+    fig4 = px.bar(monthly, x="month", y="Reviews", color="Reviews", color_continuous_scale="teal")
+    fig4.update_layout(coloraxis_showscale=False, xaxis_title="Month")
+    st.plotly_chart(fig4, use_container_width=True)
+
+with col_d:
+    st.subheader("Rating Share")
+    share = filtered["rating"].value_counts().reset_index()
+    share.columns = ["Rating", "Count"]
+    share["Rating"] = share["Rating"].astype(str) + " ⭐"
+    fig5 = px.pie(share, names="Rating", values="Count", hole=0.4)
+    st.plotly_chart(fig5, use_container_width=True)
+
+st.divider()
+st.subheader("Raw Data")
+st.dataframe(filtered.head(1000), use_container_width=True)
