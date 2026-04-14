@@ -1,13 +1,16 @@
-# Sales Dashboard
+# Data Analytics Portfolio
 
-A sales data analysis dashboard built with Python, Pandas, Plotly and Streamlit.
+Interactive data analysis dashboards built with Python, Pandas, Plotly and Streamlit.
 
-## About the project
-This dashboard analyzes sales data with interactive charts showing:
-- Total orders, revenue and average ticket
-- Revenue by country
-- Revenue by product line
-- Sales evolution over time
+## Projects
+
+### 💄 Beauty Products Dashboard
+Analysis of 2 million Amazon Beauty product reviews with interactive filters by year and rating.
+
+**Metrics:** 2M+ reviews · 249K products · 1.2M users · 4.15 avg rating
+
+### 📊 Sales Dashboard
+CRM-style sales analysis with revenue by country, product line and time evolution.
 
 ## Technologies
 - Python
@@ -21,5 +24,6 @@ pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-## Dataset
-Sample sales data from [Kaggle](https://www.kaggle.com/datasets/kyanyoga/sample-sales-data).
+## Live Demo
+- [Beauty Products Dashboard](https://share.streamlit.io)
+- [Sales Dashboard](https://share.streamlit.io)
